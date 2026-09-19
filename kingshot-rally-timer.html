@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>集結時刻計算ツール — Kingshot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eaf4fb; --bg-alt: #dceefb; --panel: #ffffff; --panel-2: #f0f8ff;
+    --panel-3: #e3f0fa; --line: #bcd9ec; --gold: #3b82c4; --gold-bright: #2563a8;
+    --ink: #1e3a5c; --ink-dim: #6c8aa3; --accent-ink: #ffffff; --radius: 4px; --radius-lg: 6px;
+  }
+  :root { color-scheme: light; }
+  :root[data-theme="light"] {
+    --bg: #eaf4fb; --bg-alt: #dceefb; --panel: #ffffff; --panel-2: #f0f8ff;
+    --panel-3: #e3f0fa; --line: #bcd9ec; --gold: #3b82c4; --gold-bright: #2563a8;
+    --ink: #1e3a5c; --ink-dim: #6c8aa3; --accent-ink: #ffffff; color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1622; --bg-alt: #0f1e2e; --panel: #142839; --panel-2: #1b3348;
+    --panel-3: #1a2f42; --line: #2b4a63; --gold: #5aa9e6; --gold-bright: #7ec4f5;
+    --ink: #e6f1fa; --ink-dim: #8fb0c7; --accent-ink: #062338; color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #eaf4fb; --bg-alt: #dceefb; --panel: #ffffff; --panel-2: #f0f8ff;
+      --panel-3: #e3f0fa; --line: #bcd9ec; --gold: #3b82c4; --gold-bright: #2563a8;
+      --ink: #1e3a5c; --ink-dim: #6c8aa3; --accent-ink: #ffffff; color-scheme: light;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: 'Inter', -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    min-height: 100vh; }
+  body { background-image: linear-gradient(180deg, var(--bg-alt) 0%, var(--bg) 320px); }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 28px 18px 60px; }
+  header.top { display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 22px; border-bottom: 1px solid var(--line); padding-bottom: 16px; gap: 10px; }
+  header.top h1 { font-family: 'Cinzel', serif; font-weight: 700; font-size: 20px;
+    letter-spacing: 0.01em; margin: 0; color: var(--gold-bright); }
+  header.top .sub { font-size: 11px; color: var(--ink-dim); margin-top: 4px; }
+  .top-controls { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .top-controls-row { display: flex; gap: 6px; }
+  .theme-btn, .lang-select { background: none; border: 1px solid var(--line); color: var(--ink-dim);
+    border-radius: var(--radius); padding: 5px 10px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .lang-select { color: var(--ink); }
+  .theme-btn:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  .dest-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg);
+    padding: 18px; margin-bottom: 18px; }
+  .dest-top { display: flex; gap: 10px; margin-bottom: 14px; }
+  .dest-name-input { flex: 1; background: var(--panel-2); border: 1px solid var(--line); color: var(--gold-bright);
+    padding: 9px 12px; border-radius: var(--radius); font-size: 16px; font-weight: 700; font-family: 'Cinzel', serif;
+    min-width: 0; }
+  .dest-name-input::placeholder { color: var(--ink-dim); font-weight: 400; font-family: 'Inter', sans-serif; }
+  .dest-remove-btn { background: none; border: 1px solid var(--line); color: var(--ink-dim);
+    width: 38px; border-radius: var(--radius); cursor: pointer; font-size: 16px; flex-shrink: 0; }
+  .dest-remove-btn:hover { border-color: var(--gold); color: var(--gold-bright); }
+
+  .label { font-size: 13px; color: var(--ink-dim); margin-bottom: 8px; display: block; }
+  .utc-badge { font-size: 10px; letter-spacing: 0.04em; color: var(--gold); border: 1px solid var(--line);
+    border-radius: 20px; padding: 2px 8px; margin-left: 6px; }
+  .date-note { font-size: 11px; color: var(--ink-dim); margin-top: 6px; }
+
+  input[type="time"] { background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
+    padding: 9px 10px; border-radius: var(--radius); font-size: 15px; font-family: inherit; width: 100%; }
+
+  .quick-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .chip { background: var(--panel-2); border: 1px solid var(--line); color: var(--ink-dim);
+    padding: 7px 12px; border-radius: 20px; font-size: 13px; cursor: pointer; }
+  .chip:hover { border-color: var(--gold); color: var(--gold-bright); }
+  .chip.active { background: var(--gold); border-color: var(--gold); color: var(--accent-ink); font-weight: 600; }
+  .chip.mini { padding: 5px 10px; font-size: 12px; }
+
+  .btn.wine { background: #f6dfe1; border-color: #d9a3a9; color: #7a2635; }
+  .btn.wine:hover { background: #f0cdd1; border-color: #b5495a; color: #7a2635; }
+  .add-row .btn.wine { width: 100%; padding: 10px; font-size: 13px; }
+
+  .btn { background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
+    padding: 9px 14px; border-radius: var(--radius); font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .btn:hover { border-color: var(--gold); color: var(--gold-bright); }
+  .btn.primary { background: var(--gold); border-color: var(--gold); color: var(--accent-ink); font-weight: 600; }
+  .btn.primary:hover { background: var(--gold-bright); color: var(--accent-ink); }
+  .btn.small { padding: 6px 10px; font-size: 12px; }
+
+  .secadjust-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+  .secadjust-row .delay-toggle { font-size: 13px; color: var(--ink-dim); }
+
+  .customarrival-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--ink-dim); }
+  .customarrival-check { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--gold); cursor: pointer; }
+  .customarrival-row .time-field input { width: 64px; }
+
+  .assembly-block { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+
+  .results-block { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .leader-results { display: flex; flex-direction: column; gap: 6px; }
+  .leader-result-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; }
+  .leader-result-row .name { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .leader-result-row .time { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 14px; color: var(--gold-bright); letter-spacing: 0.02em; white-space: nowrap; }
+
+  .leaders-block { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .section-title { display: flex; justify-content: space-between; align-items: center; margin: 0 0 12px; gap: 8px; flex-wrap: wrap; }
+  .section-title h3 { font-family: 'Cinzel', serif; font-weight: 500; font-size: 14px;
+    letter-spacing: 0.03em; color: var(--ink-dim); margin: 0; }
+
+  .leader-cards { display: flex; flex-direction: column; gap: 8px; }
+  .leader-card { background: var(--panel-3); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px; position: relative; }
+  .leader-top { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+  .leader-check, .delay-check { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--gold); cursor: pointer; }
+  .name-input { flex: 1; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
+    padding: 8px 10px; border-radius: var(--radius); font-size: 14px; font-weight: 600; font-family: inherit; min-width: 0; }
+  .name-input::placeholder { color: var(--ink-dim); font-weight: 400; }
+  .remove-btn { background: none; border: 1px solid var(--line); color: var(--ink-dim);
+    width: 32px; border-radius: var(--radius); cursor: pointer; font-size: 14px; flex-shrink: 0; }
+  .remove-btn:hover { border-color: var(--gold); color: var(--gold-bright); }
+
+  .march-row, .delay-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .delay-row { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+  .march-row .march-label, .delay-toggle { font-size: 12px; color: var(--ink-dim); margin-right: 2px; }
+  .delay-toggle { display: inline-flex; align-items: center; gap: 6px; }
+  .time-field { display: flex; align-items: center; gap: 3px; }
+  .time-field input { width: 52px; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
+    padding: 6px 4px; border-radius: var(--radius); font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 14px; text-align: center; }
+  .time-field span { font-size: 11px; color: var(--ink-dim); }
+
+  .add-row { margin-top: 10px; }
+  .add-btn { width: 100%; background: none; border: 1px dashed var(--line); color: var(--ink-dim);
+    padding: 10px; border-radius: var(--radius-lg); cursor: pointer; font-size: 13px; }
+  .add-btn:hover { border-color: var(--gold); color: var(--gold-bright); }
+  .add-dest-btn { width: 100%; background: none; border: 1px dashed var(--gold); color: var(--gold-bright);
+    padding: 14px; border-radius: var(--radius-lg); cursor: pointer; font-size: 14px; font-weight: 600; margin-top: 4px; }
+  .add-dest-btn:hover { background: var(--panel-2); }
+
+  .empty-state { text-align: center; color: var(--ink-dim); font-size: 13px; padding: 20px 10px;
+    border: 1px dashed var(--line); border-radius: var(--radius-lg); }
+
+  .copy-btn { position: relative; }
+  .copy-toast { position: absolute; top: -30px; right: 0; background: var(--gold); color: var(--accent-ink);
+    font-size: 11px; padding: 4px 8px; border-radius: var(--radius); opacity: 0; transition: opacity 0.2s;
+    pointer-events: none; white-space: nowrap; }
+  .copy-toast.show { opacity: 1; }
+
+  footer.note { margin-top: 10px; font-size: 12px; color: var(--ink-dim); line-height: 1.6;
+    border-top: 1px solid var(--line); padding-top: 14px; }
+
+  .title-row { display: flex; align-items: center; gap: 8px; }
+  .info-btn { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--gold);
+    background: none; color: var(--gold); font-size: 13px; font-weight: 700; font-style: italic;
+    font-family: Georgia, 'Times New Roman', serif; cursor: pointer; display: inline-flex;
+    align-items: center; justify-content: center; padding: 0; line-height: 1; flex-shrink: 0; }
+  .info-btn:hover { background: var(--gold); color: var(--accent-ink); }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(10, 20, 30, 0.55);
+    display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 1000; }
+  .modal-box { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg);
+    max-width: 460px; width: 100%; max-height: 80vh; overflow-y: auto; padding: 24px 20px 20px;
+    position: relative; }
+  .modal-close { position: absolute; top: 10px; right: 10px; background: none; border: none;
+    color: var(--ink-dim); font-size: 20px; cursor: pointer; line-height: 1; padding: 4px; }
+  .modal-close:hover { color: var(--gold-bright); }
+  .modal-body p { font-size: 13px; color: var(--ink); line-height: 1.7; margin: 0 0 14px;
+    white-space: pre-line; }
+  .modal-body p:last-child { margin-bottom: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="title-row">
+      <h1 id="titleText">集結時刻計算ツール</h1>
+      <button class="info-btn" id="infoBtn" type="button" aria-label="Info">i</button>
+    </div>
+    <div class="top-controls">
+      <div class="top-controls-row">
+        <select class="lang-select" id="langSelect" aria-label="Language">
+          <option value="ja">日本語</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+      <button class="theme-btn" id="themeToggle" type="button">表示切替</button>
+    </div>
+  </header>
+
+  <div id="destinationsWrap"></div>
+
+  <div class="empty-state" id="emptyState" style="display:none;"></div>
+
+  <button class="add-dest-btn" id="addDest" type="button">＋ 目的地を追加</button>
+
+  <footer class="note" id="footerNote"></footer>
+
+  <div class="modal-overlay" id="infoModal" style="display:none;">
+    <div class="modal-box">
+      <button class="modal-close" id="infoClose" type="button" aria-label="Close">×</button>
+      <div class="modal-body" id="infoBody"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const STORAGE_KEY = 'kingshot-rally-timer-v9';
+  const DEFAULT_DEST_NAME = 'Castle';
+
+  const I18N = {
+    ja: {
+      title: '集結時刻計算ツール',
+      subtitle: 'Kingshot 行軍計算 (UTC)',
+      themeToggle: '表示切替',
+      arrivalLabel: '到着時刻(目標)',
+      destNameHint: '目的地名を入力',
+      secAdjustLabel: '秒数を指定',
+      customArrivalLabel: '分後に到着を指定',
+      customArrivalSuffix: '分後に到着',
+      calcStartBtn: '集結開始時刻を計算',
+      assemblyDurationLabel: '集結時間',
+      assemblyOption: (n) => `${n}分`,
+      leadersTitle: 'ラリーリーダー',
+      resultsTitle: '各ラリーリーダーの集結開始時刻',
+      copyBtn: '時刻をコピー',
+      copyToast: 'コピーしました',
+      addLeaderBtn: '＋ ラリーリーダーを追加',
+      addDestBtn: '＋ 目的地を追加',
+      emptyDest: '目的地がまだありません。上のボタンから追加してください。',
+      marchLabel: '行軍時間',
+      delayLabel: '遅延',
+      minUnit: '分',
+      secUnit: '秒',
+      nameAria: 'ラリーリーダー名',
+      namePlaceholder: 'ラリーリーダー名',
+      includeAria: 'コピーに含める',
+      delayCheckAria: '遅延を有効にする',
+      destNamePlaceholder: '目的地名',
+      destNameAria: '目的地名',
+      removeAria: '削除',
+      minAria: '分',
+      secAria: '秒',
+      footer: '',
+      infoParagraphs: [
+        'ラリーリーダー名と目的地までの行軍時間を入力し、「集結開始時刻を計算」ボタンを押します。',
+        'ボタンを押すと現在時刻+集結時間+1分後にラリーリーダー全員が同時に到着するよう集結開始時刻を計算し表示します。',
+        '表示された時刻は「時刻をコピー」ボタンでコピーしチャットで知らせることができます。',
+        '「N分後に到着」にチェックを入れた場合、現在時刻+N分後に到着するよう計算されます。\nラリーリーダーの行軍時間が1分を超える場合に使用してください。',
+        '「秒数を指定」にチェックを入れた場合、最初に集結を開始するラリーリーダーの時刻(秒数)を指定することができます。\nキリがいいタイミングにしたい場合に使用してください。',
+        '一部ラリーリーダーの到着時間をずらしたい場合は「遅延」にチェックを入れ、ずらす時間を指定してください。',
+        '入力内容はこの端末に保存されます。',
+      ],
+      defaultLeader: (n) => `ラリーリーダー${n}`,
+      shareHeader: (name) => `${name ? name + ' ' : ''}集結開始時間`,
+      shareCollectionStart: (name, t) => `${name}: ${t} UTC`,
+    },
+    en: {
+      title: 'Rally Time Calculator',
+      subtitle: 'Kingshot March Calculator (UTC)',
+      themeToggle: 'Toggle theme',
+      arrivalLabel: 'Target Arrival Time',
+      destNameHint: 'Enter destination name',
+      secAdjustLabel: 'Round seconds to',
+      customArrivalLabel: 'Set custom arrival offset',
+      customArrivalSuffix: 'minutes from now',
+      calcStartBtn: 'Calculate Rally Start Time',
+      assemblyDurationLabel: 'Rally Duration',
+      assemblyOption: (n) => `${n} min`,
+      leadersTitle: 'Rally Leaders',
+      resultsTitle: 'Rally Start Time per Leader',
+      copyBtn: 'Copy Times',
+      copyToast: 'Copied',
+      addLeaderBtn: '+ Add Rally Leader',
+      addDestBtn: '+ Add Destination',
+      emptyDest: 'No destinations yet. Add one above.',
+      marchLabel: 'March Time',
+      delayLabel: 'Delay',
+      minUnit: 'min',
+      secUnit: 'sec',
+      nameAria: 'Rally Leader name',
+      namePlaceholder: 'Rally Leader name',
+      includeAria: 'Include in copy',
+      delayCheckAria: 'Enable delay',
+      destNamePlaceholder: 'Destination name',
+      destNameAria: 'Destination name',
+      removeAria: 'Remove',
+      minAria: 'Minutes',
+      secAria: 'Seconds',
+      footer: '',
+      infoParagraphs: [
+        'Enter each Rally Leader\u2019s name and their march time to the destination, then press "Calculate Rally Start Time."',
+        'Pressing the button calculates and displays Rally Start Time per Leader so everyone arrives together at current time + rally duration + 1 minute.',
+        'You can copy the displayed times with "Copy Times" and share them in chat.',
+        'If you check "N minutes from now," the arrival time is calculated as current time + N minutes.\nUse this when a Rally Leader\u2019s march time is longer than 1 minute.',
+        'If "Round seconds to" is checked, you can set the seconds value of the first Rally Leader to start assembling.\nUse this when you want a clean, round time.',
+        'If you want to delay a specific Rally Leader\u2019s arrival, check "Delay" and enter how much to delay it by.',
+        'Your input is saved on this device.',
+      ],
+      defaultLeader: (n) => `Rally Leader ${n}`,
+      shareHeader: (name) => `${name ? name + ' ' : ''}Rally Start Time`,
+      shareCollectionStart: (name, t) => `${name}: ${t} UTC`,
+    }
+  };
+
+  const destinationsWrap = document.getElementById('destinationsWrap');
+  const emptyState = document.getElementById('emptyState');
+  const langSelect = document.getElementById('langSelect');
+
+  let state = { lang: 'ja', destinations: [] };
+
+  function t() { return I18N[state.lang] || I18N.ja; }
+
+  function cryptoId() { return 'x' + Math.random().toString(36).slice(2, 10); }
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.destinations)) return parsed;
+      }
+    } catch (e) { /* storage unavailable, use defaults */ }
+    const lang = 'en';
+    const tr = I18N[lang];
+    return {
+      lang,
+      destinations: [
+        {
+          id: cryptoId(), name: DEFAULT_DEST_NAME, targetArrival: null, assemblyMin: 5, secAdjustEnabled: false, secAdjustValue: 0,
+          leaders: [
+            { id: cryptoId(), name: '', m: 0, s: 30, checked: true, delayEnabled: false, delayM: 0, delayS: 0 },
+            { id: cryptoId(), name: '', m: 0, s: 30, checked: true, delayEnabled: false, delayM: 0, delayS: 0 }
+          ]
+        }
+      ]
+    };
+  }
+
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch (e) { /* ignore quota / privacy-mode errors */ }
+  }
+
+  function toTimeValue(date) {
+    return `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+  }
+
+  function resolveTimeValue(hhmmss) {
+    if (!hhmmss) return null;
+    const m = hhmmss.match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (!m) return null;
+    const [, H, Mi, S] = m;
+    const now = new Date();
+    const base = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), +H, +Mi, S ? +S : 0));
+    const dayMs = 86400000;
+    const diff = base.getTime() - now.getTime();
+    if (diff < -12 * 3600 * 1000) return new Date(base.getTime() + dayMs);
+    if (diff > 12 * 3600 * 1000) return new Date(base.getTime() - dayMs);
+    return base;
+  }
+
+  function formatUTC(date) {
+    return `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+  }
+
+  function marchSeconds(p) { return (Number(p.m) || 0) * 60 + (Number(p.s) || 0); }
+  function delaySeconds(p) { return (Number(p.delayM) || 0) * 60 + (Number(p.delayS) || 0); }
+
+  // collection (rally) start = targetArrival + delay - march - assemblyDuration(shared)
+  function collectionStartFor(targetArrival, assemblyMin, p) {
+    if (!targetArrival) return null;
+    let ms = targetArrival.getTime();
+    if (p.delayEnabled) ms += delaySeconds(p) * 1000;
+    ms -= marchSeconds(p) * 1000;
+    ms -= (Number(assemblyMin) || 0) * 60000;
+    return new Date(ms);
+  }
+
+  function escapeAttr(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  }
+
+  function showToast(toastEl) {
+    toastEl.classList.add('show');
+    setTimeout(() => toastEl.classList.remove('show'), 1500);
+  }
+
+  function copyToClipboard(text, toastEl) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => showToast(toastEl)).catch(() => fallbackCopy(text, toastEl));
+    } else {
+      fallbackCopy(text, toastEl);
+    }
+  }
+
+  function fallbackCopy(text, toastEl) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast(toastEl);
+    } catch (e) { /* clipboard unavailable */ }
+  }
+
+  function renderAll() {
+    const tr = t();
+    document.documentElement.lang = state.lang;
+    document.getElementById('titleText').textContent = tr.title;
+    document.getElementById('themeToggle').textContent = tr.themeToggle;
+    document.getElementById('addDest').textContent = tr.addDestBtn;
+    document.getElementById('footerNote').textContent = tr.footer;
+    document.title = tr.title + ' — Kingshot';
+
+    destinationsWrap.innerHTML = '';
+    emptyState.style.display = state.destinations.length === 0 ? 'block' : 'none';
+    emptyState.textContent = tr.emptyDest;
+
+    state.destinations.forEach((dest) => renderDestination(dest));
+  }
+
+  function renderDestination(dest) {
+    const tr = t();
+    const el = document.createElement('div');
+    el.className = 'dest-card';
+
+    el.innerHTML = `
+      <label class="label">${tr.destNameHint}</label>
+      <div class="dest-top">
+        <input class="dest-name-input" type="text" value="${escapeAttr(dest.name)}" maxlength="30" placeholder="${tr.destNamePlaceholder}" aria-label="${tr.destNameAria}">
+        <button class="dest-remove-btn" type="button" aria-label="${tr.removeAria}">×</button>
+      </div>
+      <label class="label">${tr.arrivalLabel}<span class="utc-badge">UTC</span></label>
+      <input type="time" class="arrival-input" step="1">
+
+      <div class="customarrival-row">
+        <input type="checkbox" class="customarrival-check" aria-label="${tr.customArrivalLabel}">
+        <div class="time-field"><input type="number" min="0" max="999" value="6" class="customarrival-value" aria-label="${tr.minAria}"></div>
+        <span>${tr.customArrivalSuffix}</span>
+      </div>
+
+      <div class="add-row">
+        <button class="btn wine calc-start-btn" type="button">${tr.calcStartBtn}</button>
+      </div>
+
+      <div class="secadjust-row">
+        <label class="delay-toggle">
+          <input type="checkbox" class="secadjust-check">
+          <span>${tr.secAdjustLabel}</span>
+        </label>
+        <div class="time-field"><input type="number" min="0" max="59" value="0" class="secadjust-value" aria-label="${tr.secAria}"><span>${tr.secUnit}</span></div>
+        <button class="chip mini secadjust-quick" data-sec="0" type="button">0${tr.secUnit}</button>
+        <button class="chip mini secadjust-quick" data-sec="30" type="button">30${tr.secUnit}</button>
+      </div>
+
+      <div class="assembly-block">
+        <label class="label">${tr.assemblyDurationLabel}</label>
+        <div class="quick-row duration-quick">
+          <button class="chip" data-assembly="1" type="button">${tr.assemblyOption(1)}</button>
+          <button class="chip" data-assembly="2" type="button">${tr.assemblyOption(2)}</button>
+          <button class="chip" data-assembly="3" type="button">${tr.assemblyOption(3)}</button>
+          <button class="chip" data-assembly="4" type="button">${tr.assemblyOption(4)}</button>
+          <button class="chip" data-assembly="5" type="button">${tr.assemblyOption(5)}</button>
+        </div>
+      </div>
+
+      <div class="results-block">
+        <div class="section-title">
+          <h3>${tr.resultsTitle}</h3>
+          <div class="copy-btn">
+            <button class="btn primary small copy-btn-inner" type="button">${tr.copyBtn}</button>
+            <div class="copy-toast">${tr.copyToast}</div>
+          </div>
+        </div>
+        <div class="leader-results"></div>
+      </div>
+
+      <div class="leaders-block">
+        <div class="section-title">
+          <h3>${tr.leadersTitle}</h3>
+        </div>
+        <div class="leader-cards"></div>
+        <div class="add-row">
+          <button class="add-btn add-leader-btn" type="button">${tr.addLeaderBtn}</button>
+        </div>
+      </div>
+    `;
+    destinationsWrap.appendChild(el);
+
+    const destNameInput = el.querySelector('.dest-name-input');
+    const removeDestBtn = el.querySelector('.dest-remove-btn');
+    const arrivalInput = el.querySelector('.arrival-input');
+    const calcStartBtn = el.querySelector('.calc-start-btn');
+    const customArrivalCheck = el.querySelector('.customarrival-check');
+    const customArrivalValue = el.querySelector('.customarrival-value');
+    const secAdjustCheck = el.querySelector('.secadjust-check');
+    const secAdjustValue = el.querySelector('.secadjust-value');
+    const durationQuick = el.querySelector('.duration-quick');
+    const leaderCardsWrap = el.querySelector('.leader-cards');
+    const leaderResultsWrap = el.querySelector('.leader-results');
+    const addLeaderBtn = el.querySelector('.add-leader-btn');
+    const copyBtnInner = el.querySelector('.copy-btn-inner');
+    const copyToastInner = el.querySelector('.copy-toast');
+
+    destNameInput.addEventListener('input', (e) => { dest.name = e.target.value; saveState(); });
+    removeDestBtn.addEventListener('click', () => {
+      state.destinations = state.destinations.filter(d => d.id !== dest.id);
+      saveState(); renderAll();
+    });
+
+    if (dest.targetArrival) {
+      arrivalInput.value = dest.targetArrival;
+    } else {
+      const d = new Date(Date.now() + 360 * 1000);
+      d.setMilliseconds(0);
+      dest.targetArrival = toTimeValue(d);
+      arrivalInput.value = dest.targetArrival;
+      saveState();
+    }
+
+    arrivalInput.addEventListener('input', () => {
+      dest.targetArrival = arrivalInput.value;
+      saveState(); renderResults();
+    });
+
+    if (dest.customArrivalEnabled === undefined) dest.customArrivalEnabled = false;
+    if (dest.customArrivalMin === undefined) dest.customArrivalMin = 6;
+    customArrivalCheck.checked = dest.customArrivalEnabled;
+    customArrivalValue.value = dest.customArrivalMin;
+    customArrivalCheck.addEventListener('change', (e) => {
+      dest.customArrivalEnabled = e.target.checked;
+      saveState();
+    });
+    customArrivalValue.addEventListener('input', (e) => {
+      dest.customArrivalMin = e.target.value;
+      saveState();
+    });
+
+    calcStartBtn.addEventListener('click', () => {
+      if (dest.assemblyMin === undefined) dest.assemblyMin = 5;
+      const addMin = dest.customArrivalEnabled
+        ? (Number(dest.customArrivalMin) || 0)
+        : dest.assemblyMin + 1;
+      const d = new Date(Date.now() + addMin * 60000);
+      d.setMilliseconds(0);
+      const val = toTimeValue(d);
+      arrivalInput.value = val;
+      dest.targetArrival = val;
+      saveState(); renderResults();
+    });
+
+    if (dest.secAdjustEnabled === undefined) dest.secAdjustEnabled = false;
+    if (dest.secAdjustValue === undefined) dest.secAdjustValue = 0;
+    secAdjustCheck.checked = dest.secAdjustEnabled;
+    secAdjustValue.value = dest.secAdjustValue;
+    secAdjustCheck.addEventListener('change', (e) => {
+      dest.secAdjustEnabled = e.target.checked;
+      saveState(); renderResults();
+    });
+    secAdjustValue.addEventListener('input', (e) => {
+      dest.secAdjustValue = e.target.value;
+      saveState(); renderResults();
+    });
+    el.querySelectorAll('.secadjust-quick').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const val = Number(btn.dataset.sec);
+        secAdjustValue.value = val;
+        dest.secAdjustValue = val;
+        saveState(); renderResults();
+      });
+    });
+
+    // Earliest-starting leader's rally-start seconds are rounded forward (never earlier)
+    // to the specified value, and the same shift is applied to every leader so the
+    // whole schedule stays in sync.
+    function getEffectiveTargetArrival(rawTarget) {
+      if (!rawTarget || !dest.secAdjustEnabled) return rawTarget;
+      let earliest = null;
+      dest.leaders.forEach((p) => {
+        const s = collectionStartFor(rawTarget, dest.assemblyMin, p);
+        if (s && (!earliest || s.getTime() < earliest.getTime())) earliest = s;
+      });
+      if (!earliest) return rawTarget;
+      const desiredSec = ((Number(dest.secAdjustValue) || 0) % 60 + 60) % 60;
+      const currentSec = earliest.getUTCSeconds();
+      const delta = ((desiredSec - currentSec) % 60 + 60) % 60;
+      return new Date(rawTarget.getTime() + delta * 1000);
+    }
+
+    if (dest.assemblyMin === undefined) dest.assemblyMin = 5;
+    durationQuick.querySelectorAll('.chip').forEach((chip) => {
+      chip.classList.toggle('active', Number(chip.dataset.assembly) === dest.assemblyMin);
+      chip.addEventListener('click', () => {
+        dest.assemblyMin = Number(chip.dataset.assembly);
+        durationQuick.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === chip));
+        saveState(); renderResults();
+      });
+    });
+
+    function renderResults() {
+      const tr2 = t();
+      leaderResultsWrap.innerHTML = '';
+      const targetArrival = getEffectiveTargetArrival(resolveTimeValue(arrivalInput.value));
+      const rows = dest.leaders.map((p, idx) => {
+        const displayName = p.name || tr2.defaultLeader(idx + 1);
+        const start = targetArrival ? collectionStartFor(targetArrival, dest.assemblyMin, p) : null;
+        return { displayName, start };
+      });
+      if (targetArrival) {
+        rows.sort((a, b) => a.start.getTime() - b.start.getTime());
+      }
+      rows.forEach(({ displayName, start }) => {
+        const row = document.createElement('div');
+        row.className = 'leader-result-row';
+        const timeText = start ? formatUTC(start) + ' UTC' : '—';
+        row.innerHTML = `<span class="name">${escapeAttr(displayName)}</span><span class="time">${timeText}</span>`;
+        leaderResultsWrap.appendChild(row);
+      });
+    }
+
+    function renderLeaders() {
+      const tr2 = t();
+      leaderCardsWrap.innerHTML = '';
+      dest.leaders.forEach((p) => {
+        if (p.checked === undefined) p.checked = true;
+        if (p.delayEnabled === undefined) p.delayEnabled = false;
+        if (p.delayM === undefined) p.delayM = 0;
+        if (p.delayS === undefined) p.delayS = 0;
+        const card = document.createElement('div');
+        card.className = 'leader-card';
+        card.innerHTML = `
+          <div class="leader-top">
+            <input type="checkbox" class="leader-check" ${p.checked ? 'checked' : ''} aria-label="${tr2.includeAria}">
+            <input class="name-input" type="text" value="${escapeAttr(p.name)}" maxlength="24" placeholder="${tr2.namePlaceholder}" aria-label="${tr2.nameAria}">
+            <button class="remove-btn" type="button" aria-label="${tr2.removeAria}">×</button>
+          </div>
+          <div class="march-row">
+            <span class="march-label">${tr2.marchLabel}</span>
+            <div class="time-field"><input type="number" min="0" max="99" value="${p.m}" class="f-m" aria-label="${tr2.minAria}"><span>${tr2.minUnit}</span></div>
+            <div class="time-field"><input type="number" min="0" max="59" value="${p.s}" class="f-s" aria-label="${tr2.secAria}"><span>${tr2.secUnit}</span></div>
+          </div>
+          <div class="delay-row">
+            <label class="delay-toggle">
+              <input type="checkbox" class="delay-check" ${p.delayEnabled ? 'checked' : ''} aria-label="${tr2.delayCheckAria}">
+              <span>${tr2.delayLabel}</span>
+            </label>
+            <div class="time-field"><input type="number" min="0" max="99" value="${p.delayM}" class="f-dm" aria-label="${tr2.minAria}"><span>${tr2.minUnit}</span></div>
+            <div class="time-field"><input type="number" min="0" max="59" value="${p.delayS}" class="f-ds" aria-label="${tr2.secAria}"><span>${tr2.secUnit}</span></div>
+          </div>
+        `;
+        leaderCardsWrap.appendChild(card);
+
+        card.querySelector('.leader-check').addEventListener('change', (e) => { p.checked = e.target.checked; saveState(); renderResults(); });
+        card.querySelector('.name-input').addEventListener('input', (e) => { p.name = e.target.value; saveState(); renderResults(); });
+        card.querySelector('.f-m').addEventListener('input', (e) => { p.m = e.target.value; saveState(); renderResults(); });
+        card.querySelector('.f-s').addEventListener('input', (e) => { p.s = e.target.value; saveState(); renderResults(); });
+        card.querySelector('.delay-check').addEventListener('change', (e) => { p.delayEnabled = e.target.checked; saveState(); renderResults(); });
+        card.querySelector('.f-dm').addEventListener('input', (e) => { p.delayM = e.target.value; saveState(); renderResults(); });
+        card.querySelector('.f-ds').addEventListener('input', (e) => { p.delayS = e.target.value; saveState(); renderResults(); });
+        card.querySelector('.remove-btn').addEventListener('click', () => {
+          dest.leaders = dest.leaders.filter(x => x.id !== p.id);
+          saveState(); renderLeaders(); renderResults();
+        });
+      });
+    }
+
+    addLeaderBtn.addEventListener('click', () => {
+      const tr2 = t();
+      dest.leaders.push({ id: cryptoId(), name: '', m: 0, s: 30, checked: true, delayEnabled: false, delayM: 0, delayS: 0 });
+      saveState(); renderLeaders(); renderResults();
+    });
+
+    copyBtnInner.addEventListener('click', () => {
+      const tr2 = t();
+      const targetArrival = getEffectiveTargetArrival(resolveTimeValue(arrivalInput.value));
+      const lines = [];
+      lines.push(tr2.shareHeader(dest.name));
+      dest.leaders.forEach((p) => {
+        if (!targetArrival || !p.checked) return;
+        const start = collectionStartFor(targetArrival, dest.assemblyMin, p);
+        lines.push(tr2.shareCollectionStart(p.name, formatUTC(start)));
+      });
+      copyToClipboard(lines.join('\n'), copyToastInner);
+    });
+
+    renderLeaders();
+    renderResults();
+  }
+
+  document.getElementById('addDest').addEventListener('click', () => {
+    const tr = t();
+    state.destinations.push({
+      id: cryptoId(), name: '', targetArrival: null, assemblyMin: 5, secAdjustEnabled: false, secAdjustValue: 0,
+      leaders: [{ id: cryptoId(), name: '', m: 0, s: 30, checked: true, delayEnabled: false, delayM: 0, delayS: 0 }]
+    });
+    saveState(); renderAll();
+  });
+
+  langSelect.addEventListener('change', () => {
+    state.lang = langSelect.value;
+    saveState(); renderAll();
+  });
+
+  const themeToggle = document.getElementById('themeToggle');
+  themeToggle.addEventListener('click', () => {
+    const root = document.documentElement;
+    const current = root.getAttribute('data-theme');
+    if (current === 'dark') root.setAttribute('data-theme', 'light');
+    else if (current === 'light') root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', 'dark');
+  });
+
+  const infoBtn = document.getElementById('infoBtn');
+  const infoModal = document.getElementById('infoModal');
+  const infoBody = document.getElementById('infoBody');
+  const infoClose = document.getElementById('infoClose');
+  function openInfo() {
+    const tr = t();
+    infoBody.innerHTML = (tr.infoParagraphs || []).map(p => `<p>${escapeAttr(p)}</p>`).join('');
+    infoModal.style.display = 'flex';
+  }
+  function closeInfo() { infoModal.style.display = 'none'; }
+  infoBtn.addEventListener('click', openInfo);
+  infoClose.addEventListener('click', closeInfo);
+  infoModal.addEventListener('click', (e) => { if (e.target === infoModal) closeInfo(); });
+
+  // init
+  state = loadState();
+  if (!state.lang) state.lang = 'en';
+  langSelect.value = state.lang;
+  renderAll();
+})();
+</script>
+</body>
+</html>
